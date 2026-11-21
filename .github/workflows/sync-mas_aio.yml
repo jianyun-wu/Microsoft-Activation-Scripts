@@ -1,0 +1,42 @@
+name: 自动同步 MAS 官方库
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 检出你的仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 2. 暴力 1:1 同步并保护脚本
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 🚨【关键救命操作】：重置前，先把你所有的 Github Actions 脚本备份到安全的安全区！
+          cp -r .github /tmp/github_backup
+
+          # 1. 绑定官方库
+          git remote add upstream https://github.com/massgravel/Microsoft-Activation-Scripts.git
+          git fetch upstream
+          
+          # 2. 【核心暴力魔法】：重置仓库，此时脚本会被官方状态抹除
+          git checkout master || git checkout -b master
+          git reset --hard upstream/master
+          
+          # 🚨【关键救命操作】：重置完了！赶紧把刚刚备份的脚本塞回仓库！
+          cp -r /tmp/github_backup .github
+          
+          # 3. 把塞回来的脚本重新添加到 Git 记录里
+          git add .github/
+          git commit -m "✅ 恢复自动化同步脚本" || true
+          
+          # 4. 强行推送到你的 GitHub！完美收工！
+          git push origin master --force
